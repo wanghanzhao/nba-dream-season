@@ -673,7 +673,12 @@ function placePlayer(slot) {
   }
   if (!state.selectedPlayer) return toast("先选择一名球员");
   if (!acceptsSlot(state.selectedPlayer, slot)) return toast("这个球员不适合这个位置");
-  state.lineup[slot] = { ...state.selectedPlayer, slot };
+  const placedPlayer = { ...state.selectedPlayer, slot };
+  state.lineup[slot] = placedPlayer;
+  if (lineupList().length < 11 && !solveRemainingLineup()) {
+    state.lineup[slot] = null;
+    return toast("这样放会卡住后面的位置，换个位置或换名球员");
+  }
   state.selectedPlayer = null;
   state.round = lineupList().length + 1;
   renderDraft();
