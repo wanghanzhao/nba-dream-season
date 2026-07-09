@@ -41,6 +41,11 @@ button {
   cursor: pointer;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 button:disabled {
   opacity: 0.48;
   cursor: not-allowed;
@@ -130,6 +135,68 @@ button:disabled {
   gap: 12px;
 }
 
+.link-button {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 800;
+}
+
+.hub-hero {
+  align-content: center;
+  gap: 24px;
+}
+
+.hub-art {
+  min-height: 300px;
+}
+
+.hub-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.hub-card {
+  display: grid;
+  gap: 7px;
+  min-height: 132px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--panel);
+}
+
+.hub-card span {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.hub-card strong {
+  font-size: 22px;
+}
+
+.hub-card small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.basketball-card {
+  background:
+    linear-gradient(135deg, rgba(244, 124, 22, 0.2), rgba(31, 18, 53, 0.94)),
+    var(--panel);
+}
+
+.football-card {
+  background:
+    linear-gradient(135deg, rgba(51, 209, 132, 0.18), rgba(31, 18, 53, 0.94)),
+    var(--panel);
+}
+
 .primary {
   border-color: transparent;
   background: linear-gradient(135deg, #ff7a1a, #ff9d1f);
@@ -146,6 +213,18 @@ button:disabled {
   border-color: rgba(143, 78, 216, 0.8);
   color: #dec5ff;
   background: rgba(143, 78, 216, 0.12);
+}
+
+.football-shell {
+  background:
+    linear-gradient(rgba(5, 27, 21, 0.18), rgba(13, 4, 28, 0.94)),
+    radial-gradient(circle at 55% 18%, rgba(51, 209, 132, 0.17), transparent 20%),
+    var(--bg);
+}
+
+.football-art .score-logo {
+  color: #eafff4;
+  text-shadow: 0 10px 38px rgba(51, 209, 132, 0.28);
 }
 
 .screen-head,
@@ -384,6 +463,10 @@ button:disabled {
   gap: 10px;
 }
 
+.football-random {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .random-row div {
   border: 2px solid rgba(255, 196, 59, 0.7);
   border-radius: 12px;
@@ -396,6 +479,108 @@ button:disabled {
   display: block;
   color: var(--gold);
   font-size: 20px;
+}
+
+.football-random strong {
+  font-size: 16px;
+}
+
+.team-profile {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(51, 209, 132, 0.28);
+  border-radius: 8px;
+  background: rgba(5, 27, 21, 0.38);
+}
+
+.team-profile strong {
+  color: #eafff4;
+  font-size: 13px;
+}
+
+.team-profile span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.football-pitch {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+  margin: 4px 0 14px;
+  border: 1px solid rgba(51, 209, 132, 0.35);
+  border-radius: 18px;
+  padding: 12px 10px;
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.14) 49% 51%, transparent 51%),
+    linear-gradient(rgba(51, 209, 132, 0.14), rgba(51, 209, 132, 0.04));
+}
+
+.football-slot {
+  min-height: 74px;
+  padding: 6px 5px;
+}
+
+.football-slot b {
+  display: block;
+  color: var(--gold);
+  font-size: 10px;
+}
+
+.football-slot span {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.football-slot small {
+  font-size: 10px;
+}
+
+.football-slot:nth-child(1) {
+  grid-column: 3 / span 2;
+}
+
+.football-slot:nth-child(2) {
+  grid-column: 1 / span 1;
+}
+
+.football-slot:nth-child(3) {
+  grid-column: 2 / span 2;
+}
+
+.football-slot:nth-child(4) {
+  grid-column: 4 / span 2;
+}
+
+.football-slot:nth-child(5) {
+  grid-column: 6 / span 1;
+}
+
+.football-slot:nth-child(6) {
+  grid-column: 2 / span 2;
+}
+
+.football-slot:nth-child(7) {
+  grid-column: 4 / span 2;
+}
+
+.football-slot:nth-child(8) {
+  grid-column: 3 / span 2;
+}
+
+.football-slot:nth-child(9) {
+  grid-column: 1 / span 2;
+}
+
+.football-slot:nth-child(10) {
+  grid-column: 3 / span 2;
+}
+
+.football-slot:nth-child(11) {
+  grid-column: 5 / span 2;
 }
 
 .reroll-row {
@@ -426,6 +611,21 @@ button:disabled {
 .section-title span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.section-title-actions {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.section-title-actions button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #eafff4;
+  font-size: 12px;
+  background: rgba(51, 209, 132, 0.14);
 }
 
 .filters {
@@ -475,6 +675,14 @@ button:disabled {
   color: var(--muted);
   font-style: normal;
   font-size: 12px;
+}
+
+.player-card small {
+  display: block;
+  margin-top: 5px;
+  color: #d9fff0;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .player-rating {
@@ -538,6 +746,49 @@ button:disabled {
 .report {
   color: #e9dcff;
   line-height: 1.7;
+  padding-top: 2px;
+  font-size: 13px;
+}
+
+.fixture-list {
+  display: grid;
+  gap: 8px;
+}
+
+.fixture {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 3px 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.fixture span {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.fixture strong {
+  color: white;
+  font-size: 13px;
+}
+
+.fixture small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.fixture.win {
+  border-color: rgba(51, 209, 132, 0.45);
+}
+
+.fixture.loss {
+  border-color: rgba(255, 105, 135, 0.45);
 }
 
 .history-list {
@@ -572,5 +823,23 @@ button:disabled {
 @media (min-width: 700px) {
   .phone-shell {
     min-height: 844px;
+  }
+}
+
+@media (max-width: 390px) {
+  .section-title {
+    align-items: start;
+  }
+
+  .section-title-actions {
+    max-width: 156px;
+  }
+
+  .football-random {
+    grid-template-columns: 1fr;
+  }
+
+  .football-slot {
+    min-height: 68px;
   }
 }
