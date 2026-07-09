@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>82胜圆梦赛季</title>
+    <link rel="stylesheet" href="./styles.css?v=20260709-v13" />
+  </head>
+  <body>
+    <main class="phone-shell">
+      <section class="hero" id="homeView">
+        <div class="hero-art">
+          <div class="score-logo">82<span>-0</span></div>
+          <h1>82胜圆梦赛季</h1>
+          <p>随机球队年代，组出你的五人阵容，带无冠巨星圆梦总冠军。</p>
+        </div>
+        <div class="home-actions">
+          <button id="normalBtn" class="primary" type="button">开始游戏</button>
+          <button id="dreamBtn" class="gold" type="button">圆梦模式</button>
+          <button id="historyBtn" class="ghost" type="button">历史最佳</button>
+        </div>
+      </section>
+
+      <section class="screen hidden" id="dreamView">
+        <header class="screen-head">
+          <button id="dreamBackBtn" type="button">返回</button>
+          <div>
+            <p>选择圆梦对象</p>
+            <h2>无冠球星名单</h2>
+          </div>
+        </header>
+        <div id="dreamGrid" class="dream-grid"></div>
+      </section>
+
+      <section class="screen hidden" id="draftView">
+        <header class="draft-top">
+          <button id="draftHomeBtn" type="button">首页</button>
+          <div>
+            <p id="modeLabel">普通模式</p>
+            <h2>组建阵容</h2>
+          </div>
+          <button id="restartBtn" type="button">重开</button>
+        </header>
+
+        <div id="lineup" class="lineup"></div>
+
+        <div id="dreamNote" class="dream-note hidden"></div>
+
+        <section class="round-panel">
+          <div class="round-title">
+            <strong id="roundText">第 1 / 5 轮</strong>
+            <span id="roundHint">先随机球队和年代</span>
+          </div>
+
+          <div class="random-row">
+            <div>
+              <span>球队</span>
+              <strong id="teamText">???</strong>
+            </div>
+            <div>
+              <span>年代</span>
+              <strong id="eraText">???</strong>
+            </div>
+          </div>
+
+          <button id="randomBtn" class="primary" type="button">随机</button>
+          <button id="lockBtn" class="gold hidden" type="button">锁定球员池</button>
+
+          <div class="reroll-row">
+            <button id="rerollTeamBtn" type="button">重换球队 <span id="teamRerollText">1</span>次</button>
+            <button id="rerollEraBtn" type="button">重换年代 <span id="eraRerollText">1</span>次</button>
+          </div>
+        </section>
+
+        <section id="playerSection" class="player-section hidden">
+          <div class="section-title">
+            <h2>选择你的球员</h2>
+            <span id="selectHint">点击球员加入阵容</span>
+          </div>
+          <div class="filters" id="filters"></div>
+          <div id="playerList" class="player-list"></div>
+        </section>
+      </section>
+
+      <section class="screen hidden" id="resultView">
+        <header class="screen-head">
+          <button id="resultHomeBtn" type="button">首页</button>
+          <div>
+            <p>赛季结算</p>
+            <h2 id="resultTitle">圆梦成功</h2>
+          </div>
+        </header>
+        <div id="resultCard" class="result-card"></div>
+        <div class="result-actions">
+          <button id="againBtn" class="primary" type="button">再来一局</button>
+          <button id="copyReportBtn" type="button">复制战报</button>
+        </div>
+      </section>
+
+      <section class="screen hidden" id="historyView">
+        <header class="screen-head">
+          <button id="historyBackBtn" type="button">返回</button>
+          <div>
+            <p>本机记录</p>
+            <h2>历史最佳</h2>
+          </div>
+        </header>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <div id="toast" class="toast hidden"></div>
+    </main>
+
+    <script src="./src/game.js?v=20260709-v13"></script>
+  </body>
+</html>
