@@ -506,6 +506,48 @@ button:disabled {
   line-height: 1.55;
 }
 
+.formation-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.formation-choices button {
+  display: grid;
+  gap: 4px;
+  min-height: 92px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  text-align: left;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.formation-choices button.active {
+  border-color: var(--gold);
+  color: white;
+  box-shadow: 0 0 0 1px rgba(255, 196, 59, 0.55);
+  background: rgba(255, 196, 59, 0.12);
+}
+
+.formation-choices strong {
+  color: var(--gold);
+  font-size: 16px;
+}
+
+.formation-choices span {
+  color: #eafff4;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.formation-choices small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .football-pitch {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -836,6 +878,10 @@ button:disabled {
   }
 
   .football-random {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-choices {
     grid-template-columns: 1fr;
   }
 

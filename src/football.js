@@ -346,6 +346,14 @@ const formationProfiles = {
   diamond: "前腰串联"
 };
 
+const formationHints = {
+  wing: "适合边锋强、边后卫能跑的阵容。",
+  balance: "容错最高，适合先稳住防线再靠球星解决问题。",
+  control: "中场人数更多，适合传球和战术值高的球员。",
+  direct: "双前锋冲击强，适合中锋和身体对抗好的队。",
+  diamond: "前腰是核心，适合有顶级组织者的阵容。"
+};
+
 let state = null;
 let activeFilter = "ALL";
 let reportCache = "";
@@ -428,13 +436,13 @@ function toast(text) {
 }
 
 function startGame(mode, dreamPlayer = null) {
-  const chosenFormation = pick(formations);
   state = {
     mode,
     dreamPlayer,
     currentCountry: null,
     currentEra: null,
-    formation: chosenFormation,
+    formation: null,
+    formationOptions: [],
     poolLocked: false,
     lockedPoolIds: [],
     selectedPlayer: null,
@@ -504,10 +512,27 @@ function randomize() {
   const pair = pick(richPairs());
   state.currentCountry = pair.country;
   state.currentEra = pair.era;
-  state.formation = pick(formations);
+  state.formation = null;
+  state.formationOptions = shuffled(formations).slice(0, 3);
   state.poolLocked = false;
   state.lockedPoolIds = [];
   state.selectedPlayer = null;
+  renderDraft();
+}
+
+function selectFormation(id) {
+  if (state.poolLocked) return toast("已经锁定球员池了");
+  const formation = formations.find((item) => item.id === id);
+  if (!formation) return;
+  state.formation = formation;
+  renderDraft();
+}
+
+function rerollFormations() {
+  if (state.poolLocked) return toast("已经锁定球员池了");
+  if (!state.currentCountry || !state.currentEra) return randomize();
+  state.formation = null;
+  state.formationOptions = shuffled(formations).slice(0, 3);
   renderDraft();
 }
 
@@ -532,6 +557,7 @@ function reroll(type) {
 
 function lockPool() {
   if (!state.currentCountry || !state.currentEra) return randomize();
+  if (!state.formation) return toast("先选择一个阵型");
   const pool = viablePlayers();
   const dream = state.dreamPlayer && !pool.some((player) => player.id === state.dreamPlayer.id) ? [state.dreamPlayer] : [];
   state.lockedPoolIds = shuffled([...dream, ...pool]).map((player) => player.id);
@@ -555,7 +581,7 @@ function filterPlayer(player) {
 
 function renderDraft() {
   $("roundText").textContent = `第 ${Math.min(state.round, 11)} / 11 位`;
-  $("roundHint").textContent = state.poolLocked ? "选择球员并放进合适位置" : "先随机国家、年代和阵型";
+  $("roundHint").textContent = state.poolLocked ? "选择球员并放进合适位置" : state.currentCountry ? "选择一个阵型，再锁定球员池" : "先随机国家和核心年代";
   $("teamText").textContent = state.currentCountry || "???";
   $("eraText").textContent = state.currentEra || "???";
   $("formationText").textContent = state.formation?.name || "???";
@@ -563,18 +589,36 @@ function renderDraft() {
   if (state.currentCountry && state.currentEra) {
     const poolSize = viablePlayers().length;
     $("teamProfile").innerHTML = `
-      <strong>${state.currentCountry} · ${state.currentEra} · ${formationProfiles[state.formation.profile]}</strong>
+      <strong>${state.currentCountry} · ${state.currentEra} · ${state.formation ? formationProfiles[state.formation.profile] : "待选阵型"}</strong>
       <span>${countryProfiles[state.currentCountry]} 当前可用球员 ${poolSize} 人。</span>
     `;
   }
   $("randomBtn").classList.toggle("hidden", !!state.currentCountry && !!state.currentEra);
-  $("lockBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || state.poolLocked);
+  $("lockBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || !state.formation || state.poolLocked);
+  $("rerollFormationBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || state.poolLocked);
   $("teamRerollText").textContent = state.teamRerolls;
   $("eraRerollText").textContent = state.eraRerolls;
   $("playerSection").classList.toggle("hidden", !state.poolLocked);
   renderPitch();
+  renderFormationChoices();
   renderFilters();
   renderPlayers();
+}
+
+function renderFormationChoices() {
+  const visible = state.currentCountry && state.currentEra && !state.poolLocked;
+  $("formationChoices").classList.toggle("hidden", !visible);
+  if (!visible) {
+    $("formationChoices").innerHTML = "";
+    return;
+  }
+  $("formationChoices").innerHTML = state.formationOptions.map((formation) => `
+    <button class="${state.formation?.id === formation.id ? "active" : ""}" data-formation="${formation.id}" type="button">
+      <strong>${formation.name}</strong>
+      <span>${formationProfiles[formation.profile]}</span>
+      <small>${formationHints[formation.profile]}</small>
+    </button>
+  `).join("");
 }
 
 function renderPitch() {
@@ -708,16 +752,28 @@ function solveRemainingLineup(pool = currentPool(), slotIndex = 0, used = new Se
 
 function autoFillLineup() {
   if (!state.poolLocked) return toast("先锁定球员池");
-  const solved = solveRemainingLineup();
-  if (!solved) return toast("当前剩余球员无法补齐，试着撤下一名多位置球员");
-  Object.entries(solved).forEach(([slot, player]) => {
-    state.lineup[slot] = { ...player, slot };
-  });
-  state.selectedPlayer = null;
-  state.round = lineupList().length + 1;
-  renderDraft();
-  toast("已补齐剩余位置");
-  if (lineupList().length === 11) finishWorldCup();
+  if (!state.selectedPlayer) return toast("先选择一名球员");
+  const candidates = slots
+    .filter((slot) => !state.lineup[slot] && acceptsSlot(state.selectedPlayer, slot))
+    .sort((a, b) => {
+      const exact = Number(state.selectedPlayer.pos.includes(b)) - Number(state.selectedPlayer.pos.includes(a));
+      const rare = Number(["GK", "LB", "RB"].includes(b)) - Number(["GK", "LB", "RB"].includes(a));
+      return exact || rare;
+    });
+  for (const slot of candidates) {
+    const placedPlayer = { ...state.selectedPlayer, slot };
+    state.lineup[slot] = placedPlayer;
+    if (lineupList().length === 11 || solveRemainingLineup()) {
+      state.selectedPlayer = null;
+      state.round = lineupList().length + 1;
+      renderDraft();
+      toast(`已放到${slotLabels[slot]}`);
+      if (lineupList().length === 11) finishWorldCup();
+      return;
+    }
+    state.lineup[slot] = null;
+  }
+  toast("这名球员当前没有安全位置，换个位置或先撤下一人");
 }
 
 function lineupList() {
@@ -976,8 +1032,14 @@ function bindEvents() {
   $("randomBtn").addEventListener("click", randomize);
   $("lockBtn").addEventListener("click", lockPool);
   $("autoFillBtn").addEventListener("click", autoFillLineup);
+  $("rerollFormationBtn").addEventListener("click", rerollFormations);
   $("rerollTeamBtn").addEventListener("click", () => reroll("team"));
   $("rerollEraBtn").addEventListener("click", () => reroll("era"));
+  $("formationChoices").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-formation]");
+    if (!button) return;
+    selectFormation(button.dataset.formation);
+  });
   $("filters").addEventListener("click", (event) => {
     const button = event.target.closest("[data-filter]");
     if (!button) return;
