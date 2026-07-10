@@ -443,6 +443,7 @@ function startGame(mode, dreamPlayer = null) {
     currentEra: null,
     formation: null,
     formationOptions: [],
+    formationLocked: false,
     slotDraws: {},
     poolLocked: false,
     lockedPoolIds: [],
@@ -525,6 +526,7 @@ function randomize() {
 
 function selectFormation(id) {
   if (state.poolLocked) return toast("已经锁定球员池了");
+  if (state.formationLocked) return toast("阵型已经确定，不能再更换");
   const formation = formations.find((item) => item.id === id);
   if (!formation) return;
   state.formation = formation;
@@ -533,6 +535,7 @@ function selectFormation(id) {
 
 function rerollFormations() {
   if (state.poolLocked) return toast("已经锁定球员池了");
+  if (state.formationLocked) return toast("阵型已经确定，不能再更换");
   if (!state.currentCountry || !state.currentEra) return randomize();
   state.formation = null;
   state.formationOptions = shuffled(formations).slice(0, 3);
@@ -571,6 +574,14 @@ function drawSlotPool(slot, pair = null) {
   return { slot, country: chosen.country, era: chosen.era, ids: candidates.map((player) => player.id), rerolls: 1 };
 }
 
+function rerollOptions(slot, type) {
+  if (!slot || !state.currentCountry || !state.currentEra) return [];
+  const pairs = slotViablePairs(slot);
+  return type === "team"
+    ? pairs.filter((item) => item.country !== state.currentCountry && item.era === state.currentEra)
+    : pairs.filter((item) => item.country === state.currentCountry && item.era !== state.currentEra);
+}
+
 function reroll(type) {
   if (state.poolLocked) return toast("已经锁定球员池了");
   const slot = currentSlot();
@@ -578,13 +589,13 @@ function reroll(type) {
   if (!state.currentCountry || !state.currentEra) return randomize();
   if (type === "team") {
     if (state.teamRerolls <= 0) return toast("国家重抽次数用完了");
-    const pair = pick(richPairs(slotViablePairs(slot).filter((item) => item.country !== state.currentCountry && item.era === state.currentEra)));
+    const pair = pick(richPairs(rerollOptions(slot, "team")));
     if (!pair) return toast("当前年代没有其他可用国家");
     state.currentCountry = pair.country;
     state.teamRerolls -= 1;
   } else {
     if (state.eraRerolls <= 0) return toast("年代重抽次数用完了");
-    const pair = pick(richPairs(slotViablePairs(slot).filter((item) => item.country === state.currentCountry && item.era !== state.currentEra)));
+    const pair = pick(richPairs(rerollOptions(slot, "era")));
     if (!pair) return toast("当前国家没有其他可用年代");
     state.currentEra = pair.era;
     state.eraRerolls -= 1;
@@ -602,6 +613,7 @@ function lockPool() {
   state.slotDraws[slot] = draw;
   state.lockedPoolIds = draw.ids;
   state.poolLocked = true;
+  state.formationLocked = true;
   renderDraft();
 }
 
@@ -628,8 +640,12 @@ function filterPlayer(player) {
 function renderDraft() {
   const slot = currentSlot();
   const draw = slot ? state.slotDraws?.[slot] : null;
+  const needsFormation = !state.formation;
+  const canEditFormation = !state.formationLocked && !state.poolLocked;
+  const teamOptions = rerollOptions(slot, "team");
+  const eraOptions = rerollOptions(slot, "era");
   $("roundText").textContent = slot ? `第 ${Math.min(state.round, 11)} / 11 位 · ${slotLabels[slot]}` : "阵容已满";
-  $("roundHint").textContent = state.poolLocked ? `为${slotLabels[slot] || "当前位置"}选择球员` : state.currentCountry ? "选择一个阵型，再锁定球员池" : "先开始随机";
+  $("roundHint").textContent = state.poolLocked ? `为${slotLabels[slot] || "当前位置"}选择球员` : state.currentCountry ? (needsFormation ? "先定阵型，再锁定球员池" : "锁定当前球员池") : "先开始随机";
   $("teamText").textContent = draw?.country || state.currentCountry || "???";
   $("eraText").textContent = draw?.era || state.currentEra || "???";
   $("formationText").textContent = state.formation?.name || "???";
@@ -642,17 +658,21 @@ function renderDraft() {
       `;
     } else {
       $("teamProfile").innerHTML = `
-        <strong>逐位随机 · ${state.formation ? formationProfiles[state.formation.profile] : "待选阵型"}</strong>
-        <span>锁定后，每个位置都会单独随机国家、年代和候选球员。</span>
+        <strong>${slotLabels[slot] || "当前位置"} · ${state.currentCountry} · ${state.currentEra}</strong>
+        <span>${state.formationLocked ? `阵型已定为 ${state.formation.name}，本位置只需要锁定候选池。` : "第一次锁定后阵型固定，后续位置只随机国家、年代和候选球员。"}</span>
       `;
     }
   }
   $("randomBtn").classList.toggle("hidden", !!state.currentCountry && !!state.currentEra);
   $("lockBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || !state.formation || state.poolLocked);
-  $("rerollFormationBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || state.poolLocked);
+  $("rerollFormationBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || !canEditFormation);
   $("globalRerollRow").classList.toggle("hidden", !state.currentCountry || !state.currentEra || state.poolLocked);
   $("teamRerollText").textContent = state.teamRerolls;
   $("eraRerollText").textContent = state.eraRerolls;
+  $("rerollTeamBtn").disabled = state.teamRerolls <= 0 || !teamOptions.length;
+  $("rerollEraBtn").disabled = state.eraRerolls <= 0 || !eraOptions.length;
+  $("rerollTeamBtn").title = teamOptions.length ? "重抽同年代的其他国家" : "当前年代没有其他可用国家";
+  $("rerollEraBtn").title = eraOptions.length ? "重抽当前国家的其他年代" : "当前国家没有其他可用年代";
   $("playerSection").classList.toggle("hidden", !state.poolLocked);
   renderPitch();
   renderFormationChoices();
@@ -661,7 +681,7 @@ function renderDraft() {
 }
 
 function renderFormationChoices() {
-  const visible = state.currentCountry && state.currentEra && !state.poolLocked;
+  const visible = state.currentCountry && state.currentEra && !state.poolLocked && !state.formationLocked;
   $("formationChoices").classList.toggle("hidden", !visible);
   if (!visible) {
     $("formationChoices").innerHTML = "";
