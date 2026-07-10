@@ -510,13 +510,15 @@ function richPairs(list = viablePairs()) {
 }
 
 function randomize() {
-  state.currentCountry = "逐位随机";
-  state.currentEra = "逐位随机";
-  state.formation = null;
-  state.formationOptions = shuffled(formations).slice(0, 3);
+  const slot = currentSlot();
+  if (!slot) return;
+  if (!state.formationOptions.length) state.formationOptions = shuffled(formations).slice(0, 3);
+  const pair = pick(richPairs(slotViablePairs(slot)));
+  if (!pair) return toast("当前位置没有可用候选池");
+  state.currentCountry = pair.country;
+  state.currentEra = pair.era;
   state.poolLocked = false;
   state.lockedPoolIds = [];
-  state.slotDraws = {};
   state.selectedPlayer = null;
   renderDraft();
 }
@@ -553,44 +555,36 @@ function slotViablePairs(slot) {
   return pairs;
 }
 
-function drawSlotPool(slot) {
-  const pairs = slotViablePairs(slot);
-  const pair = pick(richPairs(pairs.length ? pairs : viablePairs()));
-  const base = players.filter((player) => player.country === pair.country && acceptsSlot(player, slot));
+function drawSlotPool(slot, pair = null) {
+  const chosen = pair || pick(richPairs(slotViablePairs(slot)));
+  if (!chosen) return null;
+  const used = new Set(lineupList().map((player) => player.id));
+  const base = players.filter((player) => player.country === chosen.country && acceptsSlot(player, slot) && !used.has(player.id));
   const scored = base
     .map((player) => ({
       player,
-      score: player.overall + (player.era === pair.era ? 12 : 0) + rng(0, 10)
+      score: player.overall + (player.era === chosen.era ? 12 : 0) + rng(0, 10)
     }))
     .sort((a, b) => b.score - a.score)
     .map((item) => item.player);
-  const candidates = scored.length ? scored.slice(0, 5) : shuffled(players.filter((player) => acceptsSlot(player, slot))).slice(0, 5);
-  return { slot, country: pair.country, era: pair.era, ids: candidates.map((player) => player.id), rerolls: 1 };
-}
-
-function buildSlotDraws() {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    state.slotDraws = {};
-    slots.forEach((slot) => {
-      if (!state.lineup[slot]) state.slotDraws[slot] = drawSlotPool(slot);
-    });
-    if (solveRemainingLineup()) return true;
-  }
-  return false;
+  const candidates = scored.length ? scored.slice(0, 5) : shuffled(players.filter((player) => acceptsSlot(player, slot) && !used.has(player.id))).slice(0, 5);
+  return { slot, country: chosen.country, era: chosen.era, ids: candidates.map((player) => player.id), rerolls: 1 };
 }
 
 function reroll(type) {
   if (state.poolLocked) return toast("已经锁定球员池了");
+  const slot = currentSlot();
+  if (!slot) return;
   if (!state.currentCountry || !state.currentEra) return randomize();
   if (type === "team") {
     if (state.teamRerolls <= 0) return toast("国家重抽次数用完了");
-    const pair = pick(richPairs(viablePairs().filter((item) => item.country !== state.currentCountry && item.era === state.currentEra)));
+    const pair = pick(richPairs(slotViablePairs(slot).filter((item) => item.country !== state.currentCountry && item.era === state.currentEra)));
     if (!pair) return toast("当前年代没有其他可用国家");
     state.currentCountry = pair.country;
     state.teamRerolls -= 1;
   } else {
     if (state.eraRerolls <= 0) return toast("年代重抽次数用完了");
-    const pair = pick(richPairs(viablePairs().filter((item) => item.country === state.currentCountry && item.era !== state.currentEra)));
+    const pair = pick(richPairs(slotViablePairs(slot).filter((item) => item.country === state.currentCountry && item.era !== state.currentEra)));
     if (!pair) return toast("当前国家没有其他可用年代");
     state.currentEra = pair.era;
     state.eraRerolls -= 1;
@@ -599,9 +593,14 @@ function reroll(type) {
 }
 
 function lockPool() {
+  const slot = currentSlot();
+  if (!slot) return;
   if (!state.currentCountry || !state.currentEra) return randomize();
   if (!state.formation) return toast("先选择一个阵型");
-  if (!buildSlotDraws()) return toast("这组随机池无法组满，换一组再试");
+  const draw = drawSlotPool(slot, { country: state.currentCountry, era: state.currentEra });
+  if (!draw || !draw.ids.length) return toast("这个位置没有候选，重抽一次试试");
+  state.slotDraws[slot] = draw;
+  state.lockedPoolIds = draw.ids;
   state.poolLocked = true;
   renderDraft();
 }
@@ -651,6 +650,7 @@ function renderDraft() {
   $("randomBtn").classList.toggle("hidden", !!state.currentCountry && !!state.currentEra);
   $("lockBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || !state.formation || state.poolLocked);
   $("rerollFormationBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || state.poolLocked);
+  $("globalRerollRow").classList.toggle("hidden", !state.currentCountry || !state.currentEra || state.poolLocked);
   $("teamRerollText").textContent = state.teamRerolls;
   $("eraRerollText").textContent = state.eraRerolls;
   $("playerSection").classList.toggle("hidden", !state.poolLocked);
@@ -779,12 +779,15 @@ function placePlayer(slot) {
   if (!acceptsSlot(state.selectedPlayer, slot)) return toast("这个球员不适合这个位置");
   const placedPlayer = { ...state.selectedPlayer, slot };
   state.lineup[slot] = placedPlayer;
-  if (lineupList().length < 11 && !solveRemainingLineup()) {
-    state.lineup[slot] = null;
-    return toast("这样放会卡住后面的位置，换个位置或换名球员");
-  }
   state.selectedPlayer = null;
   state.round = lineupList().length + 1;
+  state.currentCountry = null;
+  state.currentEra = null;
+  state.poolLocked = false;
+  state.lockedPoolIds = [];
+  state.teamRerolls = 1;
+  state.eraRerolls = 1;
+  activeFilter = "ALL";
   renderDraft();
   if (lineupList().length === 11) finishWorldCup();
 }
@@ -817,15 +820,19 @@ function autoFillLineup() {
   for (const slot of candidates) {
     const placedPlayer = { ...state.selectedPlayer, slot };
     state.lineup[slot] = placedPlayer;
-    if (lineupList().length === 11 || solveRemainingLineup()) {
-      state.selectedPlayer = null;
-      state.round = lineupList().length + 1;
-      renderDraft();
-      toast(`已放到${slotLabels[slot]}`);
-      if (lineupList().length === 11) finishWorldCup();
-      return;
-    }
-    state.lineup[slot] = null;
+    state.selectedPlayer = null;
+    state.round = lineupList().length + 1;
+    state.currentCountry = null;
+    state.currentEra = null;
+    state.poolLocked = false;
+    state.lockedPoolIds = [];
+    state.teamRerolls = 1;
+    state.eraRerolls = 1;
+    activeFilter = "ALL";
+    renderDraft();
+    toast(`已放到${slotLabels[slot]}`);
+    if (lineupList().length === 11) finishWorldCup();
+    return;
   }
   toast("这名球员当前没有安全位置，换个位置或先撤下一人");
 }
