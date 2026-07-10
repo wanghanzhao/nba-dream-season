@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>世界杯圆梦阵容</title>
-    <link rel="stylesheet" href="./styles.css?v=20260710-football-v142" />
+    <link rel="stylesheet" href="./styles.css?v=20260710-football-v15" />
   </head>
   <body>
     <main class="phone-shell football-shell">
@@ -54,11 +54,11 @@
 
           <div class="random-row football-random">
             <div>
-              <span>国家队</span>
+              <span>当前位置</span>
               <strong id="teamText">???</strong>
             </div>
             <div>
-              <span>年代</span>
+              <span>抽中年代</span>
               <strong id="eraText">???</strong>
             </div>
             <div>
@@ -74,7 +74,7 @@
           <button id="lockBtn" class="gold hidden" type="button">锁定球员池</button>
           <button id="rerollFormationBtn" class="ghost hidden" type="button">换一组阵型</button>
 
-          <div class="reroll-row">
+          <div id="globalRerollRow" class="reroll-row hidden">
             <button id="rerollTeamBtn" type="button">重抽国家 <span id="teamRerollText">1</span>次</button>
             <button id="rerollEraBtn" type="button">重抽年代 <span id="eraRerollText">1</span>次</button>
           </div>
@@ -122,6 +122,6 @@
       <div id="toast" class="toast hidden"></div>
     </main>
 
-    <script src="./src/football.js?v=20260710-v143"></script>
+    <script src="./src/football.js?v=20260710-v15"></script>
   </body>
 </html>

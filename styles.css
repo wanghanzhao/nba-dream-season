@@ -408,6 +408,11 @@ button:disabled {
   box-shadow: 0 0 18px rgba(255, 196, 59, 0.4);
 }
 
+.slot.current {
+  border-color: rgba(51, 209, 132, 0.75);
+  box-shadow: 0 0 0 1px rgba(51, 209, 132, 0.35);
+}
+
 .slot span,
 .slot small {
   display: block;

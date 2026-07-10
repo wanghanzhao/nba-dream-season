@@ -443,6 +443,7 @@ function startGame(mode, dreamPlayer = null) {
     currentEra: null,
     formation: null,
     formationOptions: [],
+    slotDraws: {},
     poolLocked: false,
     lockedPoolIds: [],
     selectedPlayer: null,
@@ -509,13 +510,13 @@ function richPairs(list = viablePairs()) {
 }
 
 function randomize() {
-  const pair = pick(richPairs());
-  state.currentCountry = pair.country;
-  state.currentEra = pair.era;
+  state.currentCountry = "逐位随机";
+  state.currentEra = "逐位随机";
   state.formation = null;
   state.formationOptions = shuffled(formations).slice(0, 3);
   state.poolLocked = false;
   state.lockedPoolIds = [];
+  state.slotDraws = {};
   state.selectedPlayer = null;
   renderDraft();
 }
@@ -534,6 +535,48 @@ function rerollFormations() {
   state.formation = null;
   state.formationOptions = shuffled(formations).slice(0, 3);
   renderDraft();
+}
+
+function currentSlot() {
+  return slots.find((slot) => !state.lineup[slot]) || null;
+}
+
+function slotViablePairs(slot) {
+  const pairs = [];
+  countries.forEach((country) => {
+    eras.forEach((era) => {
+      const candidates = players.filter((player) => player.country === country && acceptsSlot(player, slot));
+      const eraCount = candidates.filter((player) => player.era === era).length;
+      if (candidates.length >= 2 && eraCount >= 1) pairs.push({ country, era, count: candidates.length, eraCount });
+    });
+  });
+  return pairs;
+}
+
+function drawSlotPool(slot) {
+  const pairs = slotViablePairs(slot);
+  const pair = pick(richPairs(pairs.length ? pairs : viablePairs()));
+  const base = players.filter((player) => player.country === pair.country && acceptsSlot(player, slot));
+  const scored = base
+    .map((player) => ({
+      player,
+      score: player.overall + (player.era === pair.era ? 12 : 0) + rng(0, 10)
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.player);
+  const candidates = scored.length ? scored.slice(0, 5) : shuffled(players.filter((player) => acceptsSlot(player, slot))).slice(0, 5);
+  return { slot, country: pair.country, era: pair.era, ids: candidates.map((player) => player.id), rerolls: 1 };
+}
+
+function buildSlotDraws() {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    state.slotDraws = {};
+    slots.forEach((slot) => {
+      if (!state.lineup[slot]) state.slotDraws[slot] = drawSlotPool(slot);
+    });
+    if (solveRemainingLineup()) return true;
+  }
+  return false;
 }
 
 function reroll(type) {
@@ -558,21 +601,25 @@ function reroll(type) {
 function lockPool() {
   if (!state.currentCountry || !state.currentEra) return randomize();
   if (!state.formation) return toast("先选择一个阵型");
-  const pool = viablePlayers();
-  const dream = state.dreamPlayer && !pool.some((player) => player.id === state.dreamPlayer.id) ? [state.dreamPlayer] : [];
-  state.lockedPoolIds = shuffled([...dream, ...pool]).map((player) => player.id);
+  if (!buildSlotDraws()) return toast("这组随机池无法组满，换一组再试");
   state.poolLocked = true;
   renderDraft();
 }
 
 function currentPool() {
-  if (state.poolLocked) {
-    return state.lockedPoolIds
-      .map((id) => players.find((player) => player.id === id))
-      .filter(Boolean)
-      .filter((player) => !lineupList().some((picked) => picked.id === player.id));
-  }
-  return viablePlayers().filter((player) => !lineupList().some((picked) => picked.id === player.id));
+  const slot = currentSlot();
+  if (!slot) return [];
+  return slotCandidates(slot);
+}
+
+function slotCandidates(slot) {
+  const draw = state.slotDraws?.[slot];
+  const used = new Set(lineupList().map((player) => player.id));
+  if (!draw) return [];
+  return draw.ids
+    .map((id) => players.find((player) => player.id === id))
+    .filter(Boolean)
+    .filter((player) => !used.has(player.id) && acceptsSlot(player, slot));
 }
 
 function filterPlayer(player) {
@@ -580,18 +627,26 @@ function filterPlayer(player) {
 }
 
 function renderDraft() {
-  $("roundText").textContent = `第 ${Math.min(state.round, 11)} / 11 位`;
-  $("roundHint").textContent = state.poolLocked ? "选择球员并放进合适位置" : state.currentCountry ? "选择一个阵型，再锁定球员池" : "先随机国家和核心年代";
-  $("teamText").textContent = state.currentCountry || "???";
-  $("eraText").textContent = state.currentEra || "???";
+  const slot = currentSlot();
+  const draw = slot ? state.slotDraws?.[slot] : null;
+  $("roundText").textContent = slot ? `第 ${Math.min(state.round, 11)} / 11 位 · ${slotLabels[slot]}` : "阵容已满";
+  $("roundHint").textContent = state.poolLocked ? `为${slotLabels[slot] || "当前位置"}选择球员` : state.currentCountry ? "选择一个阵型，再锁定球员池" : "先开始随机";
+  $("teamText").textContent = draw?.country || state.currentCountry || "???";
+  $("eraText").textContent = draw?.era || state.currentEra || "???";
   $("formationText").textContent = state.formation?.name || "???";
   $("teamProfile").classList.toggle("hidden", !state.currentCountry || !state.currentEra);
   if (state.currentCountry && state.currentEra) {
-    const poolSize = viablePlayers().length;
-    $("teamProfile").innerHTML = `
-      <strong>${state.currentCountry} · ${state.currentEra} · ${state.formation ? formationProfiles[state.formation.profile] : "待选阵型"}</strong>
-      <span>${countryProfiles[state.currentCountry]} 当前可用球员 ${poolSize} 人。</span>
-    `;
+    if (state.poolLocked && draw && slot) {
+      $("teamProfile").innerHTML = `
+        <strong>${slotLabels[slot]} · ${draw.country} · ${draw.era}</strong>
+        <span>这个位置独立抽到 ${draw.country} ${draw.era} 候选池，选择 1 人进入首发。</span>
+      `;
+    } else {
+      $("teamProfile").innerHTML = `
+        <strong>逐位随机 · ${state.formation ? formationProfiles[state.formation.profile] : "待选阵型"}</strong>
+        <span>锁定后，每个位置都会单独随机国家、年代和候选球员。</span>
+      `;
+    }
   }
   $("randomBtn").classList.toggle("hidden", !!state.currentCountry && !!state.currentEra);
   $("lockBtn").classList.toggle("hidden", !state.currentCountry || !state.currentEra || !state.formation || state.poolLocked);
@@ -622,14 +677,15 @@ function renderFormationChoices() {
 }
 
 function renderPitch() {
+  const activeSlot = currentSlot();
   $("pitch").innerHTML = slots.map((slot) => {
     const player = state.lineup[slot];
-    const canPlace = state.selectedPlayer && acceptsSlot(state.selectedPlayer, slot) && !player;
+    const canPlace = state.selectedPlayer && acceptsSlot(state.selectedPlayer, slot) && !player && slot === activeSlot;
     return `
-      <button class="slot football-slot ${player ? "filled" : ""} ${canPlace ? "available" : ""}" data-slot="${slot}" type="button">
+      <button class="slot football-slot ${player ? "filled" : ""} ${slot === activeSlot ? "current" : ""} ${canPlace ? "available" : ""}" data-slot="${slot}" type="button">
         <b>${slotLabels[slot]}</b>
         <span>${player ? shortName(player.name) : slot}</span>
-        <small>${player ? `${player.country} · ${player.overall}` : "空位"}</small>
+        <small>${player ? `${player.country} · ${player.overall}` : slot === activeSlot ? "当前" : "待抽"}</small>
       </button>
     `;
   }).join("");
@@ -643,6 +699,8 @@ function renderFilters() {
 
 function renderPlayers() {
   if (!state.poolLocked) return;
+  const slot = currentSlot();
+  const draw = slot ? state.slotDraws?.[slot] : null;
   const pool = currentPool().filter(filterPlayer);
   $("playerList").innerHTML = pool.length
     ? pool.map((player) => `
@@ -656,7 +714,7 @@ function renderPlayers() {
         <span class="player-rating">${player.overall}</span>
       </button>
     `).join("")
-    : `<div class="empty">这个球员池已经没人可选了。</div>`;
+    : `<div class="empty">${draw ? "这个位置的候选已经没人可选了，撤下一名球员或重开。" : "阵容已经完成。"}</div>`;
 }
 
 function shortName(name) {
@@ -702,7 +760,8 @@ function acceptsSlot(player, slot) {
 function selectPlayer(id) {
   const player = players.find((item) => item.id === id);
   if (!player) return;
-  const openSlots = slots.filter((slot) => acceptsSlot(player, slot) && !state.lineup[slot]);
+  const slot = currentSlot();
+  const openSlots = slot && acceptsSlot(player, slot) && !state.lineup[slot] ? [slot] : [];
   if (!openSlots.length) return toast("他的可用位置已经满了");
   state.selectedPlayer = player;
   renderDraft();
@@ -716,6 +775,7 @@ function placePlayer(slot) {
     return;
   }
   if (!state.selectedPlayer) return toast("先选择一名球员");
+  if (state.poolLocked && slot !== currentSlot()) return toast("请先完成当前高亮位置");
   if (!acceptsSlot(state.selectedPlayer, slot)) return toast("这个球员不适合这个位置");
   const placedPlayer = { ...state.selectedPlayer, slot };
   state.lineup[slot] = placedPlayer;
@@ -729,11 +789,11 @@ function placePlayer(slot) {
   if (lineupList().length === 11) finishWorldCup();
 }
 
-function solveRemainingLineup(pool = currentPool(), slotIndex = 0, used = new Set(), solved = {}) {
+function solveRemainingLineup(slotIndex = 0, used = new Set(), solved = {}) {
   const openSlots = slots.filter((slot) => !state.lineup[slot]);
   if (slotIndex >= openSlots.length) return solved;
   const slot = openSlots[slotIndex];
-  const candidates = pool
+  const candidates = slotCandidates(slot)
     .filter((player) => !used.has(player.id) && acceptsSlot(player, slot))
     .sort((a, b) => {
       const exact = Number(b.pos.includes(slot)) - Number(a.pos.includes(slot));
@@ -742,7 +802,7 @@ function solveRemainingLineup(pool = currentPool(), slotIndex = 0, used = new Se
   for (const player of candidates) {
     used.add(player.id);
     solved[slot] = player;
-    const result = solveRemainingLineup(pool, slotIndex + 1, used, solved);
+    const result = solveRemainingLineup(slotIndex + 1, used, solved);
     if (result) return result;
     used.delete(player.id);
     delete solved[slot];
@@ -753,13 +813,7 @@ function solveRemainingLineup(pool = currentPool(), slotIndex = 0, used = new Se
 function autoFillLineup() {
   if (!state.poolLocked) return toast("先锁定球员池");
   if (!state.selectedPlayer) return toast("先选择一名球员");
-  const candidates = slots
-    .filter((slot) => !state.lineup[slot] && acceptsSlot(state.selectedPlayer, slot))
-    .sort((a, b) => {
-      const exact = Number(state.selectedPlayer.pos.includes(b)) - Number(state.selectedPlayer.pos.includes(a));
-      const rare = Number(["GK", "LB", "RB"].includes(b)) - Number(["GK", "LB", "RB"].includes(a));
-      return exact || rare;
-    });
+  const candidates = [currentSlot()].filter((slot) => slot && !state.lineup[slot] && acceptsSlot(state.selectedPlayer, slot));
   for (const slot of candidates) {
     const placedPlayer = { ...state.selectedPlayer, slot };
     state.lineup[slot] = placedPlayer;
@@ -783,10 +837,50 @@ function lineupList() {
 function historyChemistry(roster) {
   const ids = new Set(roster.map((player) => player.id));
   const matched = historyLinks.filter((link) => link.ids.every((id) => ids.has(id)));
+  const generic = genericChemistry(roster);
   return {
-    bonus: matched.reduce((sum, link) => sum + link.bonus, 0),
-    lines: matched.map((link) => `${link.name}：${link.note}`)
+    bonus: matched.reduce((sum, link) => sum + link.bonus, 0) + generic.bonus,
+    lines: [...matched.map((link) => `${link.name}：${link.note}`), ...generic.lines]
   };
+}
+
+function genericChemistry(roster) {
+  const lines = [];
+  let bonus = 0;
+  const countBy = (key) => roster.reduce((map, player) => {
+    map[player[key]] = (map[player[key]] || 0) + 1;
+    return map;
+  }, {});
+  const countriesCount = countBy("country");
+  const erasCount = countBy("era");
+  const topCountry = Object.entries(countriesCount).sort((a, b) => b[1] - a[1])[0];
+  const topEra = Object.entries(erasCount).sort((a, b) => b[1] - a[1])[0];
+  if (topCountry?.[1] >= 5) {
+    bonus += 7;
+    lines.push(`${topCountry[0]}核心：同国球员形成主心骨`);
+  } else if (topCountry?.[1] >= 3) {
+    bonus += 4;
+    lines.push(`${topCountry[0]}小核心：局部配合更顺`);
+  }
+  if (topEra?.[1] >= 4) {
+    bonus += 5;
+    lines.push(`${topEra[0]}时代共振：比赛节奏更统一`);
+  }
+  const defenders = roster.filter((player) => player.group === "DEF" || player.pos.includes("GK"));
+  if (defenders.length >= 5 && defenders.reduce((sum, player) => sum + player.defense, 0) / defenders.length >= 88) {
+    bonus += 5;
+    lines.push("铁血防线：淘汰赛抗压提升");
+  }
+  const mids = roster.filter((player) => player.group === "MID");
+  if (mids.length >= 3 && mids.reduce((sum, player) => sum + player.pass, 0) / mids.length >= 90) {
+    bonus += 5;
+    lines.push("传控中场：能把比赛降到自己的节奏");
+  }
+  if ((state.lineup.LW?.speed ?? 0) >= 88 && (state.lineup.RW?.speed ?? 0) >= 88) {
+    bonus += 4;
+    lines.push("双翼齐飞：边路能持续制造爆点");
+  }
+  return { bonus: Math.min(16, bonus), lines: lines.slice(0, 3) };
 }
 
 function formationFit(roster) {
