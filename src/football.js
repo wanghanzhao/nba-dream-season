@@ -235,6 +235,8 @@ const players = [
   p("ochoa", "奥乔亚", "墨西哥", "2010s", ["GK"], 86, 34, 48, 56, 86, 76, 54, 94, 80, 82),
   p("rafa_marquez", "拉法马尔克斯", "墨西哥", "2000s", ["CB1", "CB2", "DM"], 90, 64, 76, 88, 92, 82, 66, 92, 84, 92),
   p("claudio_suarez", "克劳迪奥苏亚雷斯", "墨西哥", "1990s", ["CB1", "CB2"], 85, 42, 58, 68, 88, 82, 64, 86, 82, 84),
+  p("ramon_ramirez", "拉蒙拉米雷斯", "墨西哥", "1990s", ["LB", "LW"], 83, 70, 82, 84, 76, 72, 80, 84, 82, 82),
+  p("ricardo_osorio", "里卡多奥索里奥", "墨西哥", "2000s", ["RB", "CB2", "LB"], 82, 48, 68, 76, 84, 76, 78, 82, 84, 82),
   p("salcido", "萨尔西多", "墨西哥", "2010s", ["LB", "CB1"], 82, 58, 72, 76, 84, 78, 76, 84, 84, 80),
   p("layun", "拉云", "墨西哥", "2010s", ["RB", "LB"], 81, 62, 74, 78, 80, 74, 78, 82, 84, 78),
   p("hugo_sanchez", "乌戈桑切斯", "墨西哥", "1980s", ["ST"], 92, 96, 86, 76, 46, 78, 82, 90, 78, 78),
@@ -242,6 +244,7 @@ const players = [
   p("chicharito", "埃尔南德斯", "墨西哥", "2010s", ["ST"], 84, 88, 76, 70, 48, 72, 78, 86, 82, 74),
   p("guardado", "瓜尔达多", "墨西哥", "2010s", ["CM", "DM", "LB"], 84, 72, 80, 84, 78, 72, 74, 86, 88, 84),
   p("herrera_mex", "埃克托埃雷拉", "墨西哥", "2010s", ["CM", "DM"], 83, 74, 78, 82, 80, 82, 72, 84, 86, 82),
+  p("gerardo_arteaga", "赫拉尔多阿特亚加", "墨西哥", "2020s", ["LB"], 80, 58, 74, 76, 78, 74, 82, 80, 82, 78),
   p("lozano", "洛萨诺", "墨西哥", "2020s", ["LW", "RW"], 84, 84, 86, 78, 48, 70, 90, 84, 78, 74),
   p("luis_hernandez", "路易斯埃尔南德斯", "墨西哥", "1990s", ["ST", "LW"], 84, 88, 82, 74, 44, 70, 82, 88, 78, 74),
 
@@ -549,8 +552,10 @@ function currentSlot() {
 function slotViablePairs(slot) {
   const pairs = [];
   countries.forEach((country) => {
+    const candidates = players.filter((player) => player.country === country && acceptsSlot(player, slot));
+    const candidateEras = new Set(candidates.map((player) => player.era));
+    if (candidateEras.size < 2) return;
     eras.forEach((era) => {
-      const candidates = players.filter((player) => player.country === country && acceptsSlot(player, slot));
       const eraCount = candidates.filter((player) => player.era === era).length;
       if (candidates.length >= 2 && eraCount >= 1) pairs.push({ country, era, count: candidates.length, eraCount });
     });
